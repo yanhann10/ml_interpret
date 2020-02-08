@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 # interpretation
 import lime
 import eli5
@@ -18,7 +19,7 @@ import joblib
 
 ### Title and Subheader
 st.title("ML Interpretor")
-st.subheader("Understand why a model is generating certain results")
+st.subheader("Interpret model output with ELI5")
 
 # File input
 # TODO File upload
@@ -49,31 +50,21 @@ rf.fit(train, labels_train)
 
 metric_accuracy = sklearn.metrics.accuracy_score(labels_test, rf.predict(test))
 
-st.text(f'Metric {metric_accuracy}')
-
-# Model when uploaded
-# def model_predict(data):
-#     vect = data_csv.transform(data).toarray()
-#     result = mdl.predict(vect)
-#     return result
+if st.checkbox('Show prediction Outcome'):
+    st.text(f'Metric {metric_accuracy:.3f}')
 
 
 # Interpretation
 if st.checkbox("Global Interpretation"):
-    st.text("Global Interpretation")
+    weights = pd.read_html(eli5.show_weights(rf).data)
+    st.dataframe(weights[0])
 
-
-st.text("Local Interpretation")
-
-weights = pd.read_html(eli5.show_weights(rf).data)
-st.dataframe(weights[0])
-
-html_temp = """
-<div style="color:tomato;"> i'm html</div>
-"""
-st.markdown(html_temp, unsafe_allow_html=True)
-
-# eli5.show_prediction(rf, train[1, :], show_feature_values=True)
+if st.checkbox("Local Interpretation"):
+    n_data = train.shape[0]
+    slider_data = st.slider("Which datapoint to explain", 0, n_data)
+    local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
+        rf, train[slider_data])
+    st.dataframe(local_interpretation)
 
 
 # explainer = lime.lime_tabular.LimeTabularExplainer(
@@ -84,4 +75,3 @@ st.markdown(html_temp, unsafe_allow_html=True)
 #     test[i], rf.predict_proba, num_features=2, top_labels=1)
 
 # exp.show_in_notebook(show_table=True, show_all=False)
-
