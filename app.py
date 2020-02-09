@@ -6,6 +6,9 @@ import os
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import classification_report
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -36,22 +39,35 @@ st.sidebar.text("Upload a csv")
 data_dim = st.sidebar.radio('Try out sample data', ('iris', '20newsgroup'))
 if data_dim == 'iris':
     data = sklearn.datasets.load_iris()
+    train, test, labels_train, labels_test = train_test_split(
+        data.data, data.target, train_size=0.80)
+    rf = RandomForestClassifier(n_estimators=500)
+    rf.fit(train, labels_train)
+    pred = rf.predict(test)
+    report = classification_report(labels_test, pred, output_dict=True)
+elif data_dim == '20newsgroup':
+    categories = ['comp.graphics', 'sci.med']
+    twenty_train = sklearn.datasets.fetch_20newsgroups(subset='train',
+                                                       categories=categories, shuffle=True, random_state=42
+                                                       )
+    twenty_test = sklearn.datasets.fetch_20newsgroups(
+        subset='test', categories=categories, shuffle=True, random_state=42
+    )
+    vec = CountVectorizer()
+    rf = RandomForestClassifier()
+    clf = make_pipeline(vec, rf)
+    clf.fit(twenty_train.data, twenty_train.target)
+    pred = clf.predict(twenty_test.data)
+    report = classification_report(twenty_test.target, pred, output_dict=True)
 
 data_dim = st.sidebar.radio('Choose a model', ('randomforest', 'catBoost'))
 
 st.sidebar.button("About App")
 
 # Model
-train, test, labels_train, labels_test = train_test_split(
-    data.data, data.target, train_size=0.80)
-
-rf = RandomForestClassifier(n_estimators=500)
-rf.fit(train, labels_train)
-
-metric_accuracy = sklearn.metrics.accuracy_score(labels_test, rf.predict(test))
 
 if st.checkbox('Show prediction Outcome'):
-    st.text(f'Metric {metric_accuracy:.3f}')
+    st.dataframe(pd.DataFrame(report).transpose())
 
 
 # Interpretation
