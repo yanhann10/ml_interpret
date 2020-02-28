@@ -19,22 +19,36 @@ from PIL import Image, ImageFilter, ImageEnhance
 # pipeline
 import joblib
 
+# TODO:
+# [ ] Allow csv upload #st.sidebar.text("Upload a csv")
+# [ ] Add other data types text, image
+# [ ] Support H2O autoML
+# [ ] Add LIME, SHAP
+# [ ] Add chart
+
+# DONE:
+# [🎉] Tabular data
+# [🎉] display global and local interpretation
+
+################################################
+# side bar
+################################################
+
 ### Title and Subheader
 st.title("ML Interpretor")
 st.subheader("Interpret model output with ELI5")
 
-# File input
-# TODO File upload
-# TODO url upload
-# TODO model upload
+
 # datafile_vectorizer = open("mdl.pkl",'rb')
 # datafile= joblib.load(mdl_vectorizer)
 # mdl_vectorizer = open("mdl.pkl" ,'rb')
 # mdl= joblib.load(mdl_vectorizer)
-st.sidebar.text("Upload a csv")
 
-# Side bar settings
-# TODO Sample data: Tabular, text, image
+
+################################################
+# Model output
+################################################
+
 data_dim = st.sidebar.radio('Try out sample data', ('iris', '20newsgroup'))
 if data_dim == 'iris':
     data = sklearn.datasets.load_iris()
@@ -61,15 +75,16 @@ elif data_dim == '20newsgroup':
 
 data_dim = st.sidebar.radio('Choose a model', ('randomforest', 'catBoost'))
 
-st.sidebar.button("About App")
-
-# Model
+################################################
+# Model output
+################################################
 
 if st.checkbox('Show prediction Outcome'):
     st.dataframe(pd.DataFrame(report).transpose())
 
-
+################################################
 # Interpretation
+################################################
 if st.checkbox("Global Interpretation"):
     weights = pd.read_html(eli5.show_weights(rf).data)
     st.dataframe(weights[0])
@@ -80,13 +95,13 @@ if st.checkbox("Local Interpretation"):
     local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
         rf, train[slider_data])
     st.dataframe(local_interpretation)
+    explaination = eli5.explain_prediction(rf, train[slider_data])
+    st.image(eli5.formatters.image.format_as_image(explaination))
 
 
-# explainer = lime.lime_tabular.LimeTabularExplainer(
-#     train, feature_names=data.feature_names, class_names=data.target_names, discretize_continuous=True)
-
-# i = np.random.randint(0, test.shape[0])
-# exp = explainer.explain_instance(
-#     test[i], rf.predict_proba, num_features=2, top_labels=1)
-
-# exp.show_in_notebook(show_table=True, show_all=False)
+################################################
+# About
+################################################
+if st.button("About App"):
+    st.write(
+        "This app demostrates machine learning interpretation frameworks such as ELI on sample data and user-chosen algorithms")
