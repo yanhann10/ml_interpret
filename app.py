@@ -20,40 +20,47 @@ from pdpbox import pdp, get_dataset, info_plots
 import joblib
 
 # DONE:
-# [🎉] Tabular data
-# [🎉] display global and local interpretation
+# [🎉] Sample tabular data
+# [🎉] Display global and local interpretation
+# [🎉] Allow csv upload
 # TODO:
+# [ ] Add PDP chart
 # [ ] Display properly formatted interp
 # [ ] Filter for wrong classification
 # [ ] Display proper feature
-# [ ] Allow csv upload #st.sidebar.text("Upload a csv")
 # [ ] Add other data types text, image
-# [ ] Support H2O autoML
 # [ ] Add SHAP
-# [ ] Add PDP chart
 
-
-################################################
-# side bar
-################################################
 
 # Title and Subheader
 st.title("ML Interpretor")
 st.subheader("Interpret model output with ELI5")
 
 
-################################################
-# Main
-################################################
-
 def main():
+
+    ################################################
+    # Side bar control
+    ################################################
+
+    data_dim = st.sidebar.radio(
+        'Try out sample data', ('iris', ))
+
+    filename = st.sidebar.text_input('Or enter a csv file path:')
+    if filename != "":
+        try:
+            with open(filename) as input:
+                df = input.read()
+                st.sidebar.text('upload complete')
+        except FileNotFoundError:
+            st.sidebar.error('File not found.')
+
+    model_dim = st.sidebar.radio(
+        'Choose a model', ('randomforest',))
 
     ################################################
     # Model output
     ################################################
-
-    data_dim = st.sidebar.radio(
-        'Try out sample data', ('iris', '20newsgroup (yet to be added)'))  #
     if data_dim == 'iris':
         iris = sns.load_dataset('iris')
         X = iris.drop("species", axis=1)
@@ -81,15 +88,11 @@ def main():
     #     report = classification_report(
     #         twenty_test.target, pred, output_dict=True)
 
-    data_dim = st.sidebar.radio(
-        'Choose a model', ('randomforest', 'catBoost (yet to be added)'))
-
     ################################################
     # Model output
     ################################################
-
-    st.sidebar.markdown('#### Prediction Outcome')
-    st.sidebar.dataframe(pd.DataFrame(report).transpose())
+    if st.sidebar.checkbox('Show classification report'):
+        st.sidebar.dataframe(pd.DataFrame(report).transpose())
 
     ################################################
     # Interpretation
