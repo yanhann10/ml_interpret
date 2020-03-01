@@ -11,97 +11,117 @@ from sklearn.metrics import classification_report
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 # interpretation
-import lime
+import shap
 import eli5
 from PIL import Image, ImageFilter, ImageEnhance
+from pdpbox import pdp, get_dataset, info_plots
 # pipeline
 import joblib
-
-# TODO:
-# [ ] Allow csv upload #st.sidebar.text("Upload a csv")
-# [ ] Add other data types text, image
-# [ ] Support H2O autoML
-# [ ] Add LIME, SHAP
-# [ ] Add chart
 
 # DONE:
 # [🎉] Tabular data
 # [🎉] display global and local interpretation
+# TODO:
+# [ ] Display properly formatted interp
+# [ ] Filter for wrong classification
+# [ ] Display proper feature
+# [ ] Allow csv upload #st.sidebar.text("Upload a csv")
+# [ ] Add other data types text, image
+# [ ] Support H2O autoML
+# [ ] Add SHAP
+# [ ] Add PDP chart
+
 
 ################################################
 # side bar
 ################################################
 
-### Title and Subheader
+# Title and Subheader
 st.title("ML Interpretor")
 st.subheader("Interpret model output with ELI5")
 
 
-# datafile_vectorizer = open("mdl.pkl",'rb')
-# datafile= joblib.load(mdl_vectorizer)
-# mdl_vectorizer = open("mdl.pkl" ,'rb')
-# mdl= joblib.load(mdl_vectorizer)
-
-
 ################################################
-# Model output
+# Main
 ################################################
 
-data_dim = st.sidebar.radio('Try out sample data', ('iris', '20newsgroup'))
-if data_dim == 'iris':
-    data = sklearn.datasets.load_iris()
-    train, test, labels_train, labels_test = train_test_split(
-        data.data, data.target, train_size=0.80)
-    rf = RandomForestClassifier(n_estimators=500)
-    rf.fit(train, labels_train)
-    pred = rf.predict(test)
-    report = classification_report(labels_test, pred, output_dict=True)
-elif data_dim == '20newsgroup':
-    categories = ['comp.graphics', 'sci.med']
-    twenty_train = sklearn.datasets.fetch_20newsgroups(subset='train',
-                                                       categories=categories, shuffle=True, random_state=42
-                                                       )
-    twenty_test = sklearn.datasets.fetch_20newsgroups(
-        subset='test', categories=categories, shuffle=True, random_state=42
-    )
-    vec = CountVectorizer()
-    rf = RandomForestClassifier()
-    clf = make_pipeline(vec, rf)
-    clf.fit(twenty_train.data, twenty_train.target)
-    pred = clf.predict(twenty_test.data)
-    report = classification_report(twenty_test.target, pred, output_dict=True)
+def main():
 
-data_dim = st.sidebar.radio('Choose a model', ('randomforest', 'catBoost'))
+    ################################################
+    # Model output
+    ################################################
 
-################################################
-# Model output
-################################################
+    data_dim = st.sidebar.radio(
+        'Try out sample data', ('iris', '20newsgroup (yet to be added)'))  #
+    if data_dim == 'iris':
+        iris = sns.load_dataset('iris')
+        X = iris.drop("species", axis=1)
+        y_labels = iris.species.unique()
+        y = pd.factorize(iris['species'])[0]
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, train_size=0.80)
+        rf = RandomForestClassifier(n_estimators=500)
+        rf.fit(X_train, y_train)
+        pred = rf.predict(X_test)
+        report = classification_report(y_test, pred, output_dict=True)
+    # elif data_dim == '20newsgroup':
+    #     categories = ['comp.graphics', 'sci.med']
+    #     twenty_train = sklearn.datasets.fetch_20newsgroups(subset='train',
+    #                                                        categories=categories, shuffle=True, random_state=42
+    #                                                        )
+    #     twenty_test = sklearn.datasets.fetch_20newsgroups(
+    #         subset='test', categories=categories, shuffle=True, random_state=42
+    #     )
+    #     vec = CountVectorizer()
+    #     rf = RandomForestClassifier()
+    #     clf = make_pipeline(vec, rf)
+    #     clf.fit(twenty_train.data, twenty_train.target)
+    #     pred = clf.predict(twenty_test.data)
+    #     report = classification_report(
+    #         twenty_test.target, pred, output_dict=True)
 
-if st.checkbox('Show prediction Outcome'):
-    st.dataframe(pd.DataFrame(report).transpose())
+    data_dim = st.sidebar.radio(
+        'Choose a model', ('randomforest', 'catBoost (yet to be added)'))
 
-################################################
-# Interpretation
-################################################
-if st.checkbox("Global Interpretation"):
-    weights = pd.read_html(eli5.show_weights(rf).data)
+    ################################################
+    # Model output
+    ################################################
+
+    st.sidebar.markdown('#### Prediction Outcome')
+    st.sidebar.dataframe(pd.DataFrame(report).transpose())
+
+    ################################################
+    # Interpretation
+    ################################################
+
+    # ELI5
+    # due to streamlit currently doesn't support the display of large chunks of HTML, the result below is mostly shown in tabular format
+    st.markdown("#### Global Interpretation")
+    weights = pd.read_html(eli5.show_weights(
+        rf, feature_names=X.columns.values).data)
     st.dataframe(weights[0])
 
-if st.checkbox("Local Interpretation"):
-    n_data = train.shape[0]
-    slider_data = st.slider("Which datapoint to explain", 0, n_data)
+    st.markdown("#### Local Interpretation")
+    # filter
+    n_data = X_test.shape[0]
+    slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
+    # display input and prediction
+    st.text('input')
+    st.dataframe(X_test.iloc[1, :])
+    pred_label = pred[slider_idx]
+    st.text('prediction: ' + y_labels[pred_label])
     local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
-        rf, train[slider_data])
-    st.dataframe(local_interpretation)
-    explaination = eli5.explain_prediction(rf, train[slider_data])
-    st.image(eli5.formatters.image.format_as_image(explaination))
+        rf, X_train.iloc[slider_idx, :])
+    local_interpretation_filtered = local_interpretation[local_interpretation.target == pred_label]
+    st.dataframe(local_interpretation_filtered)
+
+    st.markdown("#### Partial Dependence Plot")
+    pdp_dist = pdp.pdp_isolate(model=rf, dataset=X_train, model_features=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'],
+                               feature='sepal_length')
+    pdp.pdp_plot(pdp_dist, 'sepal_length')
+    st.pyplot()
 
 
-################################################
-# About
-################################################
-if st.button("About App"):
-    st.write(
-        "This app demostrates machine learning interpretation frameworks such as ELI on sample data and user-chosen algorithms")
+if __name__ == "__main__":
+    main()
