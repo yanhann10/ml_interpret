@@ -22,13 +22,18 @@ import joblib
 # DONE:
 # [🎉] Sample tabular data
 # [🎉] Display global and local interpretation
-# [ ] Add PDP chart
+# [🎉 ] Add PDP chart
 # TODO:
-# [ ] One hot encode
+# [ ] auto encode
+# [ ] add ml algos
 # [ ] Allow csv upload
+# [ ] connect encoded label n pdp
 # [ ] refactor
 # [ ] Filter for misclassification
+# [ ] Allow model upload
+# [ ] deploy to GCP or heroku
 # GOOD-TO-HAVE:
+# [ ] add circleCI
 # [ ] Display html formatted interpretation (ELI5/SHAP) (pending streamlit feature upgrade)
 # [ ] Add other data types: text, image
 
@@ -39,7 +44,8 @@ st.subheader("Interpret model output with ELI5")
 
 
 def splitdata(data, targetcol):
-    """split dataset into trianing & testing"""
+    """preprocess categorical value and split dataset into trianing & testing"""
+    cols = data.columns
     X = data.drop(targetcol, axis=1)
     features = X.columns
     target_labels = data[targetcol].unique()
@@ -64,38 +70,57 @@ def main():
         'Try out sample data', ('iris', '20 news group'))
 
     ################################################
-    # file upload
+    # upload file
     ################################################
 
     uploaded_file = st.sidebar.file_uploader(
         "Or choose a CSV file", type="csv")
+
+    target_col = ''
     if uploaded_file is not None:
-        data = pd.read_csv(uploaded_file)
+        df = pd.read_csv(uploaded_file)
         st.sidebar.text('upload complete')
+        target_col = st.sidebar.selectbox(
+            'Then choose the target variable', df.columns)
 
-    st.sidebar.selectbox('Then choose the target variable', [
-                         'species', 'demo2'])
+    ################################################
+    # process data
+    ################################################
 
+    elif data_dim == 'iris':
+        df = sns.load_dataset('iris')
+        target_col = 'species'
+
+    X_train, X_test, y_train, y_test, features, target_labels = splitdata(
+        df, target_col)
+
+    ################################################
+    # apply model
+    ################################################
     model_dim = st.sidebar.selectbox(
         'Choose a model', ('randomforest',))
 
-    ################################################
-    # Model output
-    ################################################
-    if data_dim == 'iris':
-        df = sns.load_dataset('iris')
-        X_train, X_test, y_train, y_test, features, target_labels = splitdata(
-            df, 'species')
-        rf = RandomForestClassifier(n_estimators=500)
-        rf.fit(X_train, y_train)
-        pred = rf.predict(X_test)
-        report = classification_report(y_test, pred, output_dict=True)
+    clf = RandomForestClassifier(n_estimators=500)
+    clf.fit(X_train, y_train)
+    pred = clf.predict(X_test)
+    report = classification_report(y_test, pred, output_dict=True)
 
     ################################################
     # Model output
     ################################################
+    if st.sidebar.checkbox('Preview data'):
+        st.sidebar.dataframe(df.head())
+
     if st.sidebar.checkbox('Show classification report'):
         st.sidebar.dataframe(pd.DataFrame(report).transpose())
+
+    if st.sidebar.button('About the app'):
+        st.sidebar.markdown(
+            """
+             Last update Mar 2020.    
+             [Github] (https://github.com/yanhann10/ml_interpret)   
+             Contact @hannahyan.  
+              """)
 
     ################################################
     # Global Interpretation
@@ -106,7 +131,7 @@ def main():
     st.markdown("#### Global Interpretation")
     st.text("Top feature importance")
     weights = pd.read_html(eli5.show_weights(
-        rf, feature_names=features.values).data)
+        clf, feature_names=features.values).data)
     st.dataframe(weights[0])
 
     ################################################
@@ -114,7 +139,7 @@ def main():
     ################################################
     st.markdown("#### Partial Dependence Plot")
     col = st.selectbox('Select feature', features)
-    drawpdp(rf, X_train, features, col)
+    drawpdp(clf, X_train, features, col)
 
     ################################################
     # Local Interpretation
@@ -129,7 +154,7 @@ def main():
     pred_label = pred[slider_idx]
     st.text('prediction: ' + target_labels[pred_label])
     local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
-        rf, X_train.iloc[slider_idx, :])
+        clf, X_train.iloc[slider_idx, :])
     local_interpretation_filtered = local_interpretation[local_interpretation.target == pred_label]
     st.dataframe(local_interpretation_filtered)
 

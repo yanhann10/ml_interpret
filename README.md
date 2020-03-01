@@ -45,8 +45,8 @@ streamlit run app.py
 
 ## Other resources
 
-[PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)
-[ELI5](https://eli5.readthedocs.io/en/latest/index.html)
+[PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)  
+[ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
 [Interpretable ML](https://christophm.github.io/interpretable-ml-book/)
 
 (work-in-progress)
