@@ -1,22 +1,52 @@
 # ML interpretor
 
-machine learning interpretability as-a-service (work-in-progress)
+Machine learning interpretability as-a-service
 
 ## About
 
-ML interpretor is a codeless environment to interpret why a decision is made by a supervised machine learning algorithm.
+ML interpretor is a demo for interpreting blackbox machine learning models in codeless environment.
 
-It operates at different levels:
+It provides interpretation at global and local levels and visualization using partial dependence plot.
 
-- global: indicate the relation between important features and the target variable
-- locally: understand the relation between a single row of records or small clusters of records and their corresponding predictions
+- At global level, it indicates feature importance
+- At local level, one can view how features affect individual predictions
 
-## Demo data
+## How it works
 
-Demo data have been provided in tabular format, text and image (in progress).
+One can try out demo data or upload a csv and select a ml algorithm to run automatically.
 
-## Getting started
+To view how individual classification decision is made, one can toggle which datapoint to view.
 
-Demo app
-Docker
-Run locally
+<img src="ml_interpret.gif" alt='screenshot'>
+
+If preprocessing is needed, it is recommended to preprocess the data prior to the upload since automatic data cleaning is not part of the function.
+
+## How to run this demo
+
+- Run from repo
+
+```
+git clone git@github.com:yanhann10/ml_interpret.git
+cd ml_interpret
+make install
+```
+
+- Pull from Docker
+
+```
+docker pull yanhann10/ml-explained
+```
+
+Then to run the app locally
+
+```
+streamlit run app.py
+```
+
+## Other resources
+
+[PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)
+[ELI5](https://eli5.readthedocs.io/en/latest/index.html)
+[Interpretable ML](https://christophm.github.io/interpretable-ml-book/)
+
+(work-in-progress)
