@@ -12,9 +12,7 @@ from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
 # interpretation
-import shap
 import eli5
-from PIL import Image, ImageFilter, ImageEnhance
 from pdpbox import pdp, get_dataset, info_plots
 # pipeline
 import joblib
@@ -22,13 +20,13 @@ import joblib
 # DONE:
 # [🎉] Sample tabular data
 # [🎉] Display global and local interpretation
-# [🎉 ] Add PDP chart
+# [🎉] Add PDP chart
+# [🎉 ] Allow csv upload
+# [🎉] auto encode
 # TODO:
-# [ ] auto encode
+# [ ] look into outcome categorical
 # [ ] add ml algos
-# [ ] Allow csv upload
 # [ ] connect encoded label n pdp
-# [ ] refactor
 # [ ] Filter for misclassification
 # [ ] Allow model upload
 # [ ] deploy to GCP or heroku
@@ -46,8 +44,9 @@ st.subheader("Interpret model output with ELI5")
 def splitdata(data, targetcol):
     """preprocess categorical value and split dataset into trianing & testing"""
     cols = data.columns
-    X = data.drop(targetcol, axis=1)
+    X = pd.get_dummies(data.drop(targetcol, axis=1)).fillna(0)
     features = X.columns
+    data[targetcol] = data[targetcol].astype('object')
     target_labels = data[targetcol].unique()
     y = pd.factorize(data[targetcol])[0]
     X_train, X_test, y_train, y_test = train_test_split(
@@ -98,10 +97,11 @@ def main():
     # apply model
     ################################################
     model_dim = st.sidebar.selectbox(
-        'Choose a model', ('randomforest',))
+        'Choose a model', ('randomforest', ))
+    if model_dim == 'randomforest':
+        clf = RandomForestClassifier(n_estimators=500, random_state=0)
+        clf.fit(X_train, y_train)
 
-    clf = RandomForestClassifier(n_estimators=500)
-    clf.fit(X_train, y_train)
     pred = clf.predict(X_test)
     report = classification_report(y_test, pred, output_dict=True)
 
@@ -152,7 +152,7 @@ def main():
     st.text('data to predict')
     st.dataframe(X_test.iloc[1, :])
     pred_label = pred[slider_idx]
-    st.text('prediction: ' + target_labels[pred_label])
+    st.text('prediction: ' + str(target_labels[pred_label]))
     local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
         clf, X_train.iloc[slider_idx, :])
     local_interpretation_filtered = local_interpretation[local_interpretation.target == pred_label]
