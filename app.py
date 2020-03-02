@@ -66,7 +66,7 @@ def drawpdp(model, dataset, features, selected_feature):
 def main():
 
     data_dim = st.sidebar.selectbox(
-        'Try out sample data', ('iris', '20 news group'))
+        'Try out sample data', ('iris', ''))
 
     ################################################
     # upload file
@@ -127,12 +127,11 @@ def main():
     ################################################
 
     # ELI5
-    # As streamlit currently doesn't support the display of large chunks of HTML, the result below is mostly shown in tabular format
     st.markdown("#### Global Interpretation")
     st.text("Top feature importance")
-    weights = pd.read_html(eli5.show_weights(
-        clf, feature_names=features.values).data)
-    st.dataframe(weights[0])
+    # This only works if removing newline from html
+    st.markdown(eli5.show_weights(clf, feature_names=features.values).data.translate(
+        str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
     ################################################
     # PDP plot
@@ -150,13 +149,12 @@ def main():
     slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
     # display input and prediction
     st.text('data to predict')
-    st.dataframe(X_test.iloc[1, :])
+    st.dataframe(X_test.iloc[slider_idx, :].transpose())
     pred_label = pred[slider_idx]
     st.text('prediction: ' + str(target_labels[pred_label]))
-    local_interpretation = eli5.formatters.as_dataframe.explain_prediction_df(
-        clf, X_train.iloc[slider_idx, :])
-    local_interpretation_filtered = local_interpretation[local_interpretation.target == pred_label]
-    st.dataframe(local_interpretation_filtered)
+
+    st.markdown(eli5.show_prediction(clf, doc=X_train.iloc[slider_idx, :], feature_names=features.values).data.translate(
+        str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
