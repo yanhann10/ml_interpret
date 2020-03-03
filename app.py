@@ -21,17 +21,17 @@ import joblib
 # [🎉] Sample tabular data
 # [🎉] Display global and local interpretation
 # [🎉] Add PDP chart
-# [🎉 ] Allow csv upload
+# [🎉] Allow csv upload
 # [🎉] auto encode
+# [🎉] deploy to heroku
 # TODO:
 # [ ] look into outcome categorical
 # [ ] add ml algos
 # [ ] connect encoded label n pdp
 # [ ] Filter for misclassification
-# [ ] Allow model upload
-# [ ] deploy to GCP or heroku
-# GOOD-TO-HAVE:
 # [ ] add circleCI
+# [ ] Allow model upload
+# GOOD-TO-HAVE:
 # [ ] add other interpretation framework (SHAP, LIME etc)
 # [ ] Add other data types: text, image
 
