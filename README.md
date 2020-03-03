@@ -23,6 +23,8 @@ If preprocessing is needed, it is recommended to preprocess the data prior to th
 
 ## How to run this demo
 
+- [Demo app](https://ml-interpret.herokuapp.com/)
+
 - Run from repo
 
 ```
