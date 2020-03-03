@@ -32,7 +32,7 @@ import joblib
 # [ ] deploy to GCP or heroku
 # GOOD-TO-HAVE:
 # [ ] add circleCI
-# [ ] Display html formatted interpretation (ELI5/SHAP) (pending streamlit feature upgrade)
+# [ ] add other interpretation framework (SHAP, LIME etc)
 # [ ] Add other data types: text, image
 
 
