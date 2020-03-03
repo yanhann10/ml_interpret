@@ -1,1 +1,1 @@
-web: sh setup.sh && streamlit run ml_toy.py
+web: sh setup.sh && streamlit run app.py
