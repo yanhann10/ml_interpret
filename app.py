@@ -25,13 +25,13 @@ import joblib
 # [🎉] Add PDP chart
 # [🎉] Allow csv upload
 # [🎉] auto encode
+# [🎉] Filter for misclassification
 # [🎉] deploy to heroku
 # TODO:
-# [ ] add two variable interaction pdp
-# [ ] look into outcome categorical
 # [ ] add ml algos
+# [ ] add two variable interaction pdp
+# [ ] look into outcome categorical, test on multiclass output
 # [ ] connect encoded label n pdp
-# [ ] Filter for misclassification
 # [ ] add circleCI
 # [ ] Allow model upload
 # GOOD-TO-HAVE:
@@ -64,6 +64,18 @@ def drawpdp(model, dataset, features, selected_feature):
                                feature=selected_feature)
     pdp.pdp_plot(pdp_dist, selected_feature, ncols=3, plot_lines=True)
     st.pyplot()
+
+
+def show_local_interpretation(dataset, clf, pred, target_labels, features):
+    """show individual decision points"""
+    n_data = dataset.shape[0]
+    slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
+    st.text('data to predict')
+    st.dataframe(dataset.iloc[slider_idx, :].transpose())
+    pred_label = pred[slider_idx]
+    st.text('prediction: ' + str(target_labels[pred_label]))
+    st.markdown(eli5.show_prediction(clf, doc=dataset.iloc[slider_idx, :], feature_names=features.values).data.translate(
+        str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
 
 def main():
@@ -112,8 +124,14 @@ def main():
                          verbose=0)
         clf.fit(X_train, y_train)
 
+    ################################################
+    # evaluate prediction
+    ################################################
+
     pred = clf.predict(X_test)
     report = classification_report(y_test, pred, output_dict=True)
+    n_misclassification = sum(pred != y_test)
+    X_test_misclassified = X_test[pred != y_test]
 
     ################################################
     # Model output
@@ -156,25 +174,24 @@ def main():
     ################################################
     # PDP plot
     ################################################
-    st.markdown("#### Partial Dependence Plot")
-    col = st.selectbox('Select feature', features)
+    st.markdown("#### How features relate to outcome")
+    col = st.selectbox('Select a feature', features)
     drawpdp(clf, X_train, features, col)
 
     ################################################
     # Local Interpretation
     ################################################
     st.markdown("#### Local Interpretation")
-    # filter
-    n_data = X_test.shape[0]
-    slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
-    # display input and prediction
-    st.text('data to predict')
-    st.dataframe(X_test.iloc[slider_idx, :].transpose())
-    pred_label = pred[slider_idx]
-    st.text('prediction: ' + str(target_labels[pred_label]))
 
-    st.markdown(eli5.show_prediction(clf, doc=X_train.iloc[slider_idx, :], feature_names=features.values).data.translate(
-        str.maketrans('', '', '\n')), unsafe_allow_html=True)
+    if st.checkbox('Filter for misclassified'):
+        if X_test_misclassified.shape[0] == 0:
+            st.text('No misclassification🎉')
+        else:
+            show_local_interpretation(
+                X_test_misclassified, clf, pred, target_labels, features)
+    else:
+        show_local_interpretation(
+            X_test, clf, pred, target_labels, features)
 
 
 if __name__ == "__main__":
