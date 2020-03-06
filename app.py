@@ -8,12 +8,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import classification_report
+import lightgbm as lgb
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 # interpretation
 import eli5
-from pdpbox import pdp, get_dataset, info_plots
+from eli5.sklearn import PermutationImportance
+from pdpbox import pdp
 # pipeline
 import joblib
 
@@ -25,6 +27,7 @@ import joblib
 # [🎉] auto encode
 # [🎉] deploy to heroku
 # TODO:
+# [ ] add two variable interaction pdp
 # [ ] look into outcome categorical
 # [ ] add ml algos
 # [ ] connect encoded label n pdp
@@ -32,6 +35,7 @@ import joblib
 # [ ] add circleCI
 # [ ] Allow model upload
 # GOOD-TO-HAVE:
+# [ ] Add shields.io
 # [ ] add other interpretation framework (SHAP, LIME etc)
 # [ ] Add other data types: text, image
 
@@ -43,14 +47,13 @@ st.subheader("Interpret model output with ELI5")
 
 def splitdata(data, targetcol):
     """preprocess categorical value and split dataset into trianing & testing"""
-    cols = data.columns
     X = pd.get_dummies(data.drop(targetcol, axis=1)).fillna(0)
     features = X.columns
     data[targetcol] = data[targetcol].astype('object')
     target_labels = data[targetcol].unique()
     y = pd.factorize(data[targetcol])[0]
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, train_size=0.80)
+        X, y, train_size=0.80, random_state=0)
     return X_train, X_test, y_train, y_test, features, target_labels
 
 
@@ -97,9 +100,16 @@ def main():
     # apply model
     ################################################
     model_dim = st.sidebar.selectbox(
-        'Choose a model', ('randomforest', ))
+        'Choose a model', ('randomforest', 'lightGBM'))
     if model_dim == 'randomforest':
         clf = RandomForestClassifier(n_estimators=500, random_state=0)
+        clf.fit(X_train, y_train)
+    elif model_dim == 'lightGBM':
+        clf = lgb.LGBMClassifier(
+            class_weight='balanced',
+                         objective='multiclass',
+                         n_jobs=-1,
+                         verbose=0)
         clf.fit(X_train, y_train)
 
     pred = clf.predict(X_test)
@@ -130,7 +140,17 @@ def main():
     st.markdown("#### Global Interpretation")
     st.text("Top feature importance")
     # This only works if removing newline from html
-    st.markdown(eli5.show_weights(clf, feature_names=features.values).data.translate(
+    # Refactor this once added more models
+    if model_dim == 'randomforest':
+        global_interpretation = eli5.show_weights(
+            clf, feature_names=features.values).data
+    elif model_dim == 'lightGBM':
+        perm = PermutationImportance(
+            clf, random_state=1).fit(X_train, y_train)
+        global_interpretation = eli5.show_weights(
+            perm, feature_names=X_train.columns.tolist()).data
+
+    st.markdown(global_interpretation.translate(
         str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
     ################################################
