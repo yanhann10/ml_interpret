@@ -9,6 +9,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import classification_report
 import lightgbm as lgb
+import xgboost as xgb
+from xgboost import DMatrix
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -27,16 +29,16 @@ import joblib
 # [🎉] auto encode
 # [🎉] Filter for misclassification
 # [🎉] deploy to heroku
+# [🎉 ] add more ml algos: xgb, lgbm
 # TODO:
-# [ ] add ml algos
-# [ ] add two variable interaction pdp
-# [ ] look into outcome categorical, test on multiclass output
-# [ ] connect encoded label n pdp
+# [ ] add pdp for xgb
+# [ ] add distribution plot for individual datapoint
 # [ ] add circleCI
-# [ ] Allow model upload
 # GOOD-TO-HAVE:
 # [ ] Add shields.io
+# [ ] Allow model upload
 # [ ] add other interpretation framework (SHAP, LIME etc)
+# [ ] add two variable interaction pdp (pending pdpbox maintainer fix)
 # [ ] Add other data types: text, image
 
 
@@ -57,24 +59,33 @@ def splitdata(data, targetcol):
     return X_train, X_test, y_train, y_test, features, target_labels
 
 
-@st.cache(suppress_st_warning=True)
-def drawpdp(model, dataset, features, selected_feature):
+def drawpdp(model, dataset, features, selected_feature, target_labels, model_dim):
     """draw pdpplot given a model, data, all the features and the selected feature to plot"""
-    pdp_dist = pdp.pdp_isolate(model=model, dataset=dataset, model_features=features,
-                               feature=selected_feature)
-    pdp.pdp_plot(pdp_dist, selected_feature, ncols=3, plot_lines=True)
-    st.pyplot()
+    if model_dim != 'XGBoost':
+        pdp_dist = pdp.pdp_isolate(model=model, dataset=dataset, model_features=features,
+                                   feature=selected_feature)
+        if len(target_labels) <= 5:
+            ncol = len(target_labels)
+        else:
+            ncol = 5
+        pdp.pdp_plot(pdp_dist, selected_feature, ncols=ncol, plot_lines=True)
+        st.pyplot()
 
 
-def show_local_interpretation(dataset, clf, pred, target_labels, features):
+def show_local_interpretation(dataset, clf, pred, target_labels, features, model_dim):
     """show individual decision points"""
     n_data = dataset.shape[0]
     slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
-    st.text('data to predict')
-    st.dataframe(dataset.iloc[slider_idx, :].transpose())
+
     pred_label = pred[slider_idx]
-    st.text('prediction: ' + str(target_labels[pred_label]))
-    st.markdown(eli5.show_prediction(clf, doc=dataset.iloc[slider_idx, :], feature_names=features.values).data.translate(
+    st.text('prediction: ' + str(target_labels[int(pred_label)]))
+    if model_dim != 'XGBoost':
+        local_interpretation = eli5.show_prediction(
+            clf, doc=dataset.iloc[slider_idx, :], target_names=target_labels, show_feature_values=True)
+    else:
+        local_interpretation = eli5.show_prediction(
+            clf, doc=dataset.iloc[slider_idx, :], show_feature_values=True)
+    st.markdown(local_interpretation.data.translate(
         str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
 
@@ -112,25 +123,37 @@ def main():
     # apply model
     ################################################
     model_dim = st.sidebar.selectbox(
-        'Choose a model', ('randomforest', 'lightGBM'))
+        'Choose a model', ('randomforest', 'lightGBM', 'XGBoost'))
     if model_dim == 'randomforest':
         clf = RandomForestClassifier(n_estimators=500, random_state=0)
         clf.fit(X_train, y_train)
     elif model_dim == 'lightGBM':
-        clf = lgb.LGBMClassifier(
-            class_weight='balanced',
-                         objective='multiclass',
-                         n_jobs=-1,
-                         verbose=0)
+        if len(target_labels) > 2:
+            clf = lgb.LGBMClassifier(
+                class_weight='balanced',
+                objective='multiclass',
+                n_jobs=-1,
+                verbose=0)
+        else:
+            clf = lgb.LGBMClassifier(
+                objective='binary',
+                n_jobs=-1,
+                verbose=0)
         clf.fit(X_train, y_train)
+    elif model_dim == 'XGBoost':
+        params = {'max_depth': 5, 'silent': 1,
+                  'random_state': 2, 'num_class': len(target_labels)}
+        dmatrix = DMatrix(data=X_train, label=y_train)
+        clf = xgb.train(params=params, dtrain=dmatrix)
 
     ################################################
     # evaluate prediction
     ################################################
-
-    pred = clf.predict(X_test)
+    if model_dim == 'XGBoost':
+        pred = clf.predict(DMatrix(X_test))
+    else:
+        pred = clf.predict(X_test)
     report = classification_report(y_test, pred, output_dict=True)
-    n_misclassification = sum(pred != y_test)
     X_test_misclassified = X_test[pred != y_test]
 
     ################################################
@@ -161,12 +184,15 @@ def main():
     # Refactor this once added more models
     if model_dim == 'randomforest':
         global_interpretation = eli5.show_weights(
-            clf, feature_names=features.values).data
+            clf, feature_names=features.values, top=5).data
     elif model_dim == 'lightGBM':
         perm = PermutationImportance(
             clf, random_state=1).fit(X_train, y_train)
         global_interpretation = eli5.show_weights(
-            perm, feature_names=X_train.columns.tolist()).data
+            perm, feature_names=X_train.columns.tolist(), top=5).data
+    elif model_dim == 'XGBoost':
+        global_interpretation = eli5.show_weights(
+            clf,  top=5).data
 
     st.markdown(global_interpretation.translate(
         str.maketrans('', '', '\n')), unsafe_allow_html=True)
@@ -176,7 +202,7 @@ def main():
     ################################################
     st.markdown("#### How features relate to outcome")
     col = st.selectbox('Select a feature', features)
-    drawpdp(clf, X_train, features, col)
+    drawpdp(clf, X_train, features, col, target_labels, model_dim)
 
     ################################################
     # Local Interpretation
@@ -188,10 +214,10 @@ def main():
             st.text('No misclassification🎉')
         else:
             show_local_interpretation(
-                X_test_misclassified, clf, pred, target_labels, features)
+                X_test_misclassified, clf, pred, target_labels, features, model_dim)
     else:
         show_local_interpretation(
-            X_test, clf, pred, target_labels, features)
+            X_test, clf, pred, target_labels, features, model_dim)
 
 
 if __name__ == "__main__":
