@@ -3,12 +3,11 @@ import pandas as pd
 # ml
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 import lightgbm as lgb
 import xgboost as xgb
 from xgboost import DMatrix
 # plotting
-from bokeh.models.widgets import Div
 import matplotlib.pyplot as plt
 import seaborn as sns
 # interpretation
@@ -26,15 +25,19 @@ from pdpbox import pdp
 # [🎉] Filter for misclassification
 # [🎉] deploy to heroku
 # [🎉] add more ml algos: xgb, lgbm
+# [🎉] add confusion matrix
 # TODO:
+# [ ] fix pred
+# [ ] turn the first table into a plot
 # [ ] add another demo data
 # [ ] add pdp for xgb
 # [ ] add distribution plot for individual datapoint
 # [ ] add circleCI
 # GOOD-TO-HAVE:
+# [ ] css formating
 # [ ] Add shields.io
 # [ ] Allow model upload
-# [ ] add other interpretation framework (SHAP, LIME etc)
+# [ ] add other interpretation framework (SHAP etc)
 # [ ] add two variable interaction pdp (pending pdpbox maintainer fix)
 # [ ] Add other data types: text, image
 
@@ -92,9 +95,19 @@ def show_local_interpretation(dataset, clf, pred, target_labels, features, model
             clf, doc=dataset.iloc[slider_idx, :], target_names=target_labels, show_feature_values=True, top=5, targets=[True])
     else:
         local_interpretation = eli5.show_prediction(
-            clf, doc=dataset.iloc[slider_idx, :], show_feature_values=True, top=5)
+            clf, doc=dataset.iloc[slider_idx, :], show_feature_values=True, top=5, targets=[True])
     st.markdown(local_interpretation.data.translate(
         str.maketrans('', '', '\n')), unsafe_allow_html=True)
+
+
+def show_perf_metrics(y_test, pred):
+    """show model performance metrics such as classification report or confusion matrix"""
+    report = classification_report(y_test, pred, output_dict=True)
+    conf_matrix = pd.DataFrame(confusion_matrix(
+        y_test, pred, list(set(y_test))))
+    st.sidebar.dataframe(pd.DataFrame(report).round(1).transpose())
+    sns.heatmap(conf_matrix, annot=True, cmap="YlGnBu", cbar=False)
+    st.sidebar.pyplot()
 
 
 def main():
@@ -161,9 +174,10 @@ def main():
         pred = clf.predict(DMatrix(X_test))
     else:
         pred = clf.predict(X_test)
-    report = classification_report(y_test, pred, output_dict=True)
-    X_test_misclassified = X_test[pred != y_test]
 
+    X_test_misclassified = X_test[pred != y_test]
+    pred_misclassified = pred[pred != y_test]
+    y_test_misclassified = y_test[pred != y_test]
     ################################################
     # Model output
     ################################################
@@ -172,13 +186,14 @@ def main():
 
     # the report is formatted to 2 decimal points (i.e. accuracy 1 means 1.00) dependent on streamlit styling update https://github.com/streamlit/streamlit/issues/1125
     if st.sidebar.checkbox('Show classification report'):
-        st.sidebar.table(pd.DataFrame(report).round(2).transpose())
-    # TODO: add at least 1 decimal rounding
+        show_perf_metrics(y_test, pred)
+
     if st.sidebar.button('About the app'):
         st.sidebar.markdown(
             """  
-             Read more about how it works on [Github] (https://github.com/yanhann10/ml_interpret)   
-             Last update Mar 2020.
+             Read more about how it works on [Github] (https://github.com/yanhann10/ml_interpret)     
+             Last update Mar 2020.  
+             [Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link)  
              Contact @hannahyan.  
               """)
 
@@ -238,7 +253,7 @@ def main():
             st.text('No misclassification🎉')
         else:
             show_local_interpretation(
-                X_test_misclassified, clf, pred, target_labels, features, model_dim)
+                X_test_misclassified, clf, pred_misclassified, target_labels, features, model_dim)
     else:
         show_local_interpretation(
             X_test, clf, pred, target_labels, features, model_dim)
