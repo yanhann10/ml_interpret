@@ -10,6 +10,7 @@ from xgboost import DMatrix
 # plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
+import altair as alt
 # interpretation
 import eli5
 from eli5.sklearn import PermutationImportance
@@ -27,14 +28,13 @@ from pdpbox import pdp
 # [🎉] add more ml algos: xgb, lgbm
 # [🎉] add confusion matrix
 # TODO:
-# [ ] fix pred
 # [ ] turn the first table into a plot
 # [ ] add another demo data
 # [ ] add pdp for xgb
 # [ ] add distribution plot for individual datapoint
-# [ ] add circleCI
 # GOOD-TO-HAVE:
 # [ ] css formating
+# [ ] add circleCI
 # [ ] Add shields.io
 # [ ] Allow model upload
 # [ ] add other interpretation framework (SHAP etc)
@@ -59,6 +59,7 @@ def splitdata(data, targetcol):
     return X_train, X_test, y_train, y_test, features, target_labels
 
 
+@st.cache(suppress_st_warning=True)
 def drawpdp(model, dataset, features, selected_feature, target_labels, model_dim):
     """draw pdpplot given a model, data, all the features and the selected feature to plot"""
     if model_dim != 'XGBoost':
@@ -72,15 +73,38 @@ def drawpdp(model, dataset, features, selected_feature, target_labels, model_dim
         st.pyplot()
 
 
+def show_global_interpretation(X_train, y_train, features, clf, model_dim):
+    """show most important features via permutation importance"""
+    if model_dim == 'XGBoost':
+        df_global_explain = eli5.explain_weights_df(
+            clf, feature_names=X_train.columns.values, top=5)
+    else:
+        perm = PermutationImportance(
+            clf, random_state=1).fit(X_train, y_train)
+        df_global_explain = eli5.explain_weights_df(
+            perm, feature_names=X_train.columns.values, top=5)
+    df_global_explain = df_global_explain.round(2)
+    bar = alt.Chart(df_global_explain).mark_bar(opacity=0.6).encode(
+        x='weight',
+        y=alt.Y('feature', sort='-x'),
+        tooltip=['weight']
+    ).configure_mark(
+        opacity=0.2,
+        color='rgb(244,49,59)'
+    )
+
+    st.write(bar)
+
+
 def show_local_interpretation(dataset, clf, pred, target_labels, features, model_dim):
-    """show individual decision points"""
+    """show the interpretation of individual decision points"""
     info_local = st.button('How this works')
     if info_local:
-        st.markdown("""
-        #### What's included
+        st.info("""
+        # What's included
         Input data is split 80/20 into training and testing. Model is trained on the training and applied on the testing.
         Each of the individual testing datapoint can be inspected by index. 
-        #### To Read the table
+        # To Read the table
         The table describes how an individual datapoint is classified.
         Contribution refers to the extent & direction of influence a feature has on the outcome 
         Value refers to the value of the feature in the dataset
@@ -192,7 +216,7 @@ def main():
         st.sidebar.markdown(
             """  
              Read more about how it works on [Github] (https://github.com/yanhann10/ml_interpret)     
-             Last update Mar 2020.  
+             Last update Mar 2020  
              [Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link)  
              Contact @hannahyan.  
               """)
@@ -203,30 +227,16 @@ def main():
 
     # ELI5
     st.markdown("#### Global Interpretation")
-    st.text("Top feature importance")
+    st.text("Most important features")
     info_global = st.button('How it is calculated')
     if info_global:
-        st.markdown("""
-        #### How this works
+        st.info("""
         The importance of each feature is derived from [permutation importance](https://www.kaggle.com/dansbecker/permutation-importance) -
-        by randomly shuffle a feature, how much does the model performance decrease. The ± takes into account the randomness of shuffles.
+        by randomly shuffle a feature, how much does the model performance decrease. 
         """)
     # This only works if removing newline from html
     # Refactor this once added more models
-    if model_dim == 'randomforest':
-        global_interpretation = eli5.show_weights(
-            clf, feature_names=features.values, top=5).data
-    elif model_dim == 'lightGBM':
-        perm = PermutationImportance(
-            clf, random_state=1).fit(X_train, y_train)
-        global_interpretation = eli5.show_weights(
-            perm, feature_names=X_train.columns.tolist(), top=5).data
-    elif model_dim == 'XGBoost':
-        global_interpretation = eli5.show_weights(
-            clf,  top=5).data
-
-    st.markdown(global_interpretation.translate(
-        str.maketrans('', '', '\n')), unsafe_allow_html=True)
+    show_global_interpretation(X_train, y_train, features, clf, model_dim)
 
     ################################################
     # PDP plot
@@ -237,7 +247,7 @@ def main():
     url_pdp = 'https://christophm.github.io/interpretable-ml-book/pdp.html'
     info_pdp = st.button('How to read the chart')
     if info_pdp:
-        st.markdown("""The curves describe how a feature varies with the likelihood of outcome. Each subplot belong to a class outcome.
+        st.info("""The curves describe how a feature varies with the likelihood of outcome. Each subplot belong to a class outcome.
         When a curve is below 0, the data is unlikely to belong to that class.
         [Read more] (url_pdp) """)
 

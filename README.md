@@ -4,22 +4,30 @@ Machine learning interpretability as-a-service
 
 ## About
 
-ML interpretor is a demo for interpreting blackbox machine learning models in codeless environment.
+ML interpretor demonstraites auto-interpretability of machine learning models in a codeless environment.
 
-It provides interpretation at global and local levels and visualization using partial dependence plot.
+Currently it focuses on high-performance blackbox models (random forest, XGBoost and lightGBM) for binary or multi-class classifications on tabular data, though the framework has the capability to extend to other sklearn or keras model beyond boosted trees, and on other data types such as text data.
+
+It provides interpretation at global and local levels and shows how features influence the outcome.
 
 - At global level, it indicates feature importance
 - At local level, one can view how features affect individual predictions
 
 ## How it works
 
-One can try out demo data or upload a csv and select a ml algorithm to run automatically.
+### Key features
+
+- demo data/upload a small csv (a demo csv included in the github folder)
+- choose among algorithms
+- data preview and classification report
+- global/local interpretation
+- inspect misclassified data
 
 To view how individual classification decision is made, one can toggle which datapoint to view.
 
 <img src="ml_interpret.gif" alt='screenshot'>
 
-If preprocessing is needed, it is recommended to preprocess the data prior to the upload since automatic data cleaning is not part of the function.
+_Note: If preprocessing is needed, it is recommended to preprocess the data prior to the upload since automatic data cleaning is not part of the function. _
 
 ## How to run this demo
 
@@ -31,17 +39,13 @@ If preprocessing is needed, it is recommended to preprocess the data prior to th
 git clone git@github.com:yanhann10/ml_interpret.git
 cd ml_interpret
 make install
+streamlit run app.py
 ```
 
 - Pull from Docker
 
 ```
 docker pull yanhann10/ml-explained
-```
-
-Then to run the app locally
-
-```
 streamlit run app.py
 ```
 
@@ -49,6 +53,6 @@ streamlit run app.py
 
 [PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)  
 [ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
-[Interpretable ML](https://christophm.github.io/interpretable-ml-book/)
+[Interpretable ML book](https://christophm.github.io/interpretable-ml-book/)
 
-(work-in-progress)
+Feedback welcomed
