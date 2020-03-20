@@ -11,3 +11,4 @@ eli5==0.10.0
 pylint==2.4.4
 pdpbox==0.2.0
 altair==4.0.1
+shap==0.35.0
