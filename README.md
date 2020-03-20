@@ -55,4 +55,4 @@ streamlit run app.py
 [ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
 [Interpretable ML book](https://christophm.github.io/interpretable-ml-book/)
 
-Feedback welcomed
+[Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link) welcomed
