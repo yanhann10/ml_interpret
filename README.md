@@ -27,7 +27,7 @@ To view how individual classification decision is made, one can toggle which dat
 
 <img src="ml_interpret.gif" alt='screenshot'>
 
-_Note: If preprocessing is needed, it is recommended to preprocess the data prior to the upload since automatic data cleaning is not part of the function. _
+Note: If preprocessing is needed, it is recommended to preprocess the data prior to the upload, since the app does not provide automatic data cleaning.
 
 ## How to run this demo
 
@@ -52,10 +52,11 @@ streamlit run app.py
 ## Other resources
 
 **Tutorials**
-[ML Explainability by Kaggle](https://www.kaggle.com/learn/machine-learning-explainability)
+[ML Explainability by Kaggle](https://www.kaggle.com/learn/machine-learning-explainability)  
 [Interpretable ML book](https://christophm.github.io/interpretable-ml-book/)
+
 **Package Documentations**
-[SHAP](https://github.com/slundberg/shap)
+[SHAP](https://github.com/slundberg/shap)  
 [ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
 [PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)
 

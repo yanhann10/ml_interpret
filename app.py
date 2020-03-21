@@ -30,12 +30,9 @@ import shap
 # [🎉] add confusion matrix
 # [🎉] add other interpretation framework (SHAP etc)
 # TODO:
-# [ ] format confusion matrix
-# [ ] show misclassification
-# [ ] add pdp of some sort for xgb
-# [ ] add another demo data
+# [ ] filter for groups
 # [ ] add distribution plot for individual datapoint
-# [ ] explain explainer[1]
+# [ ] add pdp of some sort for xgb
 # GOOD-TO-HAVE:
 # [ ] add plot for tree surrogate
 # [ ] Allow model upload
@@ -48,19 +45,31 @@ st.title("ML Interpreter")
 st.subheader("Blackblox ML classifiers visually explained")
 
 
-def splitdata(data, targetcol):
-    """preprocess categorical value and split dataset into trianing & testing"""
+def encode_data(data, targetcol):
+    """preprocess categorical value"""
     X = pd.get_dummies(data.drop(targetcol, axis=1)).fillna(0)
     features = X.columns
     data[targetcol] = data[targetcol].astype('object')
     target_labels = data[targetcol].unique()
     y = pd.factorize(data[targetcol])[0]
+    return X, y, features, target_labels
+
+
+def splitdata(X, y):
+    """split dataset into trianing & testing"""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, train_size=0.80, random_state=0)
-    return X_train, X_test, y_train, y_test, features, target_labels
+    return X_train, X_test, y_train, y_test
 
 
-@st.cache(suppress_st_warning=True)
+def make_pred(model_dim, X_test, clf):
+    if model_dim == 'XGBoost':
+        pred = clf.predict(DMatrix(X_test))
+    else:
+        pred = clf.predict(X_test)
+    return pred
+
+
 def show_global_interpretation_eli5(X_train, y_train, features, clf, model_dim):
     """show most important features via permutation importance"""
     perm = PermutationImportance(
@@ -86,6 +95,14 @@ def show_global_interpretation_shap(X_train, clf):
     st.pyplot()
 
 
+def filter_misclassified(X_test, y_test, pred):
+    idx_misclassified = pred != y_test
+    X_test_misclassified = X_test[idx_misclassified]
+    y_test_misclassified = y_test[idx_misclassified]
+    pred_misclassified = pred[idx_misclassified]
+    return X_test_misclassified, y_test_misclassified, pred_misclassified
+
+
 def show_local_interpretation_eli5(dataset, clf, pred, target_labels, features, model_dim, slider_idx):
     """show the interpretation of individual decision points"""
     info_local = st.button('How this works')
@@ -100,8 +117,6 @@ def show_local_interpretation_eli5(dataset, clf, pred, target_labels, features, 
         Value refers to the value of the feature in the dataset
         """)
 
-    pred_label = pred[slider_idx]
-
     if model_dim == 'XGBoost':
         local_interpretation = eli5.show_prediction(
             clf, doc=dataset.iloc[slider_idx, :], show_feature_values=True, top=5)
@@ -112,7 +127,7 @@ def show_local_interpretation_eli5(dataset, clf, pred, target_labels, features, 
         str.maketrans('', '', '\n')), unsafe_allow_html=True)
 
 
-def show_local_interpretation_shap(clf, X_test, slider_idx):
+def show_local_interpretation_shap(clf, X_test, pred, slider_idx):
     """show the interpretation of individual decision points"""
     info_local = st.button('How this works')
     if info_local:
@@ -122,11 +137,29 @@ def show_local_interpretation_shap(clf, X_test, slider_idx):
         """)
     explainer = shap.TreeExplainer(clf)
     shap_values = explainer.shap_values(X_test)
+    # the predicted class for the selected instance
+    pred_i = int(pred[slider_idx])
+
     shap.force_plot(
-        explainer.expected_value[1], shap_values[1][slider_idx,
-                                                    :], X_test.iloc[slider_idx, :],
+        explainer.expected_value[pred_i], shap_values[pred_i][slider_idx,
+                                                              :], X_test.iloc[slider_idx, :],
         matplotlib=True)
     st.pyplot()
+
+
+def show_local_interpretation(X_test, y_test, clf, pred, target_labels, features, model_dim, dim_framework):
+    """show the interpretation based on the selected framework"""
+    n_data = X_test.shape[0]
+    slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
+
+    st.text('Prediction: ' + str(target_labels[int(pred[slider_idx])]) +
+            ' | Actual label: ' + str(target_labels[int(y_test[slider_idx])]))
+
+    if dim_framework == 'SHAP':
+        show_local_interpretation_shap(clf, X_test, pred, slider_idx)
+    elif dim_framework == 'ELI5':
+        show_local_interpretation_eli5(
+            X_test, clf, pred, target_labels, features, model_dim, slider_idx)
 
 
 def show_perf_metrics(y_test, pred):
@@ -135,7 +168,8 @@ def show_perf_metrics(y_test, pred):
     st.sidebar.dataframe(pd.DataFrame(report).round(1).transpose())
     conf_matrix = confusion_matrix(y_test, pred, list(set(y_test)))
     sns.set_style("dark")
-    sns.heatmap(conf_matrix, annot=True, cmap="YlGnBu", cbar=False)
+    sns.heatmap(conf_matrix, annot=True, annot_kws={
+                "size": 20}, cmap="YlGnBu", cbar=False)
     st.sidebar.pyplot()
 
     alt.Chart(conf_matrix).mark_rect().encode(
@@ -175,11 +209,10 @@ def main():
     # upload file
     ################################################
     data_dim = st.sidebar.selectbox(
-        'Try out sample data', ('iris', ''))
+        'Try out sample data', ('iris', 'census income'))
     uploaded_file = st.sidebar.file_uploader(
         "Or upload a CSV file", type="csv")
 
-    target_col = ''
     if uploaded_file is not None:
         st.sidebar.success('File uploaded!')
         df = pd.read_csv(uploaded_file)
@@ -187,16 +220,21 @@ def main():
         col_arranged = df.columns[:-1].insert(0, df.columns[-1])
         target_col = st.sidebar.selectbox(
             'Then choose the target variable', col_arranged)
+        X, y, features, target_labels = encode_data(df, target_col)
     elif data_dim == 'iris':
         df = sns.load_dataset('iris')
         target_col = 'species'
-
+        X, y, features, target_labels = encode_data(df, target_col)
+    elif data_dim == 'census income':
+        X, y = shap.datasets.adult()
+        features = X.columns
+        target_labels = pd.Series(y).unique()
     ################################################
     # process data
     ################################################
 
-    X_train, X_test, y_train, y_test, features, target_labels = splitdata(
-        df, target_col)
+    X_train, X_test, y_train, y_test = splitdata(
+        X, y)
 
     ################################################
     # apply model
@@ -228,10 +266,7 @@ def main():
     ################################################
     # Predict
     ################################################
-    if model_dim == 'XGBoost':
-        pred = clf.predict(DMatrix(X_test))
-    else:
-        pred = clf.predict(X_test)
+    pred = make_pred(model_dim, X_test, clf)
 
     ################################################
     # Model output
@@ -287,36 +322,18 @@ def main():
     st.markdown("#### Local Interpretation")
 
     # misclassified
-    idx_misclassified = pred != y_test
-    X_test_misclassified = X_test[idx_misclassified]
-    pred_misclassified = pred[idx_misclassified]
-    display_misclassified = 'No misclassification🎉' if X_test_misclassified.shape[0] == 0 else str(
-        X_test_misclassified.shape[0]) + ' misclassified total'
-    st.text(display_misclassified)
-
-    n_data = X_test.shape[0]
-    slider_idx = st.slider("Which datapoint to explain", 0, n_data-1)
-
-    st.text('Prediction: ' + str(target_labels[pred[slider_idx]]) +
-            ' | Actual label: ' + str(target_labels[y_test[slider_idx]]))
-
-    # else:
-    # if st.checkbox('show misclassified'):
-    if dim_framework == 'SHAP':
-        show_local_interpretation_shap(clf, X_test, slider_idx)
-    elif dim_framework == 'ELI5':
-        show_local_interpretation_eli5(
-            X_test, clf, pred, target_labels, features, model_dim, slider_idx)
-
-    # if st.checkbox('Filter for misclassified'):
-    #     if X_test_misclassified.shape[0] == 0:
-    #         st.text('No misclassification🎉')
-    #     else:
-    #         show_local_interpretation(
-    #             X_test_misclassified, clf, pred_misclassified, target_labels, features, model_dim, slider_idx)
-    # else:
-    #     show_local_interpretation(
-    #         X_test, clf, pred, target_labels, features, model_dim, slider_idx)
+    if st.checkbox('Filter for misclassified'):
+        X_test, y_test, pred = filter_misclassified(X_test, y_test, pred)
+        if X_test.shape[0] == 0:
+            st.text('No misclassification🎉')
+        else:
+            st.text(
+                str(X_test.shape[0]) + ' misclassified total')
+            show_local_interpretation(
+                X_test, y_test, clf, pred, target_labels, features, model_dim, dim_framework)
+    else:
+        show_local_interpretation(
+            X_test, y_test, clf, pred, target_labels, features, model_dim, dim_framework)
 
 
 if __name__ == "__main__":
