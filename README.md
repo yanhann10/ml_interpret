@@ -1,14 +1,14 @@
-# ML interpretor
+# ML interpreter
 
-Machine learning interpretability as-a-service
+Blackblox ML classifiers visually explained
 
 ## About
 
-ML interpretor demonstraites auto-interpretability of machine learning models in a codeless environment.
+ML interpreter demonstraites auto-interpretability of machine learning models in a codeless environment.
 
-Currently it focuses on high-performance blackbox models (random forest, XGBoost and lightGBM) for binary or multi-class classifications on tabular data, though the framework has the capability to extend to other sklearn or keras model beyond boosted trees, and on other data types such as text data.
+Currently it focuses on high-performance blackbox tree ensemble models (random forest, XGBoost and lightGBM) for binary/multi-class classifications on tabular data, though the framework has the capability to extend to other models, other prediction types (regression), and other data types such as text/image.
 
-It provides interpretation at global and local levels and shows how features influence the outcome.
+It provides interpretation at both global and local levels:
 
 - At global level, it indicates feature importance
 - At local level, one can view how features affect individual predictions
@@ -20,7 +20,7 @@ It provides interpretation at global and local levels and shows how features inf
 - demo data/upload a small csv (a demo csv included in the github folder)
 - choose among algorithms
 - data preview and classification report
-- global/local interpretation
+- global/local interpretations
 - inspect misclassified data
 
 To view how individual classification decision is made, one can toggle which datapoint to view.
@@ -51,8 +51,12 @@ streamlit run app.py
 
 ## Other resources
 
-[PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)  
-[ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
+**Tutorials**
+[ML Explainability by Kaggle](https://www.kaggle.com/learn/machine-learning-explainability)
 [Interpretable ML book](https://christophm.github.io/interpretable-ml-book/)
+**Package Documentations**
+[SHAP](https://github.com/slundberg/shap)
+[ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
+[PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)
 
 [Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link) welcomed
