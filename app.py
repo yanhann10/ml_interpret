@@ -60,9 +60,8 @@ def upload_data(uploaded_file, dim_data):
 
 def encode_data(data, targetcol):
     """preprocess categorical value"""
-    # X_display is needed for displaying original categorical feature (instead of encoded ones) in SHAP forceplot
-    X_display = data.drop(targetcol, axis=1)
-    X = pd.get_dummies(X_display).fillna(0)
+    X = pd.get_dummies(data.drop(targetcol, axis=1)).fillna(0)
+    X.columns = ["".join(c if c.isalnum() else "_" for c in str(x)) for x in X.columns]
     features = X.columns
     data[targetcol] = data[targetcol].astype("object")
     target_labels = data[targetcol].unique()
@@ -347,10 +346,14 @@ def main():
         st.sidebar.markdown(
             """
              Read more about how it works on [Github] (https://github.com/yanhann10/ml_interpret)
-             Last update Mar 2020
-             [Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link)
-             Contact @hannahyan.
+             Basic data cleaning recommended before upload   
+             [Feedback](https://docs.google.com/forms/d/e/1FAIpQLSdTXKpMPC0-TmWf2ngU9A0sokH5Z0m-QazSPBIZyZ2AbXIBug/viewform?usp=sf_link)   
+             Last update Mar 2020 by [@hannahyan](https://twitter.com/hannahyan)
               """
+        )
+        st.sidebar.markdown(
+            '<a href="https://ctt.ac/zu8S4"><img src="https://image.flaticon.com/icons/svg/733/733579.svg" width=16></a>',
+            unsafe_allow_html=True,
         )
 
     ################################################
@@ -383,7 +386,7 @@ def main():
     ################################################
     # PDP plot
     ################################################
-    if st.checkbox("Show how features vary with outcome"):
+    if dim_model != "XGBoost" and st.checkbox("Show how features vary with outcome"):
         draw_pdp(clf, X_train, features, target_labels, dim_model)
 
 
