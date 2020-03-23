@@ -55,8 +55,8 @@ streamlit run app.py
 [ML Explainability by Kaggle](https://www.kaggle.com/learn/machine-learning-explainability)  
 [Interpretable ML book](https://christophm.github.io/interpretable-ml-book/)
 
-**Package Documentations**
-[SHAP](https://github.com/slundberg/shap)  
+**Packages**
+[SHAP](https://towardsdatascience.com/interpretable-machine-learning-with-xgboost-9ec80d148d27)  
 [ELI5](https://eli5.readthedocs.io/en/latest/index.html)  
 [PDPplot](https://pdpbox.readthedocs.io/en/latest/index.html)
 
