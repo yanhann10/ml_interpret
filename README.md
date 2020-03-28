@@ -4,7 +4,7 @@ Blackblox ML classifiers visually explained
 
 ## About
 
-ML interpreter demonstraites auto-interpretability of machine learning models in a codeless environment.
+ML interpreter demonstrates auto-interpretability of machine learning models in a codeless environment.
 
 Currently it focuses on high-performance blackbox tree ensemble models (random forest, XGBoost and lightGBM) for binary/multi-class classifications on tabular data, though the framework has the capability to extend to other models, other prediction types (regression), and other data types such as text/image.
 
